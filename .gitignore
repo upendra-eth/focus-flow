@@ -24,3 +24,5 @@ uploads/
 node_modules/
 dist/
 .npm/
+
+docs/

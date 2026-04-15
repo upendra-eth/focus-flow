@@ -57,7 +57,7 @@ Respond in STRICT JSON format (no markdown, no backticks):
 
 #[derive(Debug, thiserror::Error)]
 pub enum InsightError {
-    #[error("OpenAI API error: {0}")]
+    #[error("Gemini API error: {0}")]
     ApiError(String),
     #[error("network error: {0}")]
     NetworkError(#[from] reqwest::Error),
@@ -66,31 +66,47 @@ pub enum InsightError {
 }
 
 #[derive(Debug, Serialize)]
-struct ChatRequest {
-    model: String,
-    messages: Vec<ChatMessage>,
+struct GeminiGenerateRequest {
+    contents: Vec<GeminiContent>,
+    #[serde(rename = "generationConfig")]
+    generation_config: GeminiGenerationConfig,
+}
+
+#[derive(Debug, Serialize)]
+struct GeminiGenerationConfig {
+    #[serde(rename = "responseMimeType")]
+    response_mime_type: String,
     temperature: f32,
 }
 
 #[derive(Debug, Serialize)]
-struct ChatMessage {
-    role: String,
-    content: String,
+struct GeminiContent {
+    parts: Vec<GeminiPart>,
+}
+
+#[derive(Debug, Serialize)]
+struct GeminiPart {
+    text: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct ChatResponse {
-    choices: Vec<ChatChoice>,
+struct GeminiGenerateResponse {
+    candidates: Option<Vec<GeminiCandidate>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ChatChoice {
-    message: ChatMessageResponse,
+struct GeminiCandidate {
+    content: Option<GeminiCandidateContent>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ChatMessageResponse {
-    content: Option<String>,
+struct GeminiCandidateContent {
+    parts: Option<Vec<GeminiCandidatePart>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiCandidatePart {
+    text: Option<String>,
 }
 
 pub struct InsightsGenerator {
@@ -104,7 +120,7 @@ impl InsightsGenerator {
         Self {
             api_key: api_key.to_string(),
             client: reqwest::Client::new(),
-            model: "gpt-4o".to_string(),
+            model: "gemini-2.0-flash".to_string(),
         }
     }
 
@@ -206,28 +222,28 @@ impl InsightsGenerator {
         user_message: &str,
         temperature: f32,
     ) -> Result<String, InsightError> {
-        let request = ChatRequest {
-            model: self.model.clone(),
-            messages: vec![
-                ChatMessage {
-                    role: "system".to_string(),
-                    content: system_prompt.to_string(),
-                },
-                ChatMessage {
-                    role: "user".to_string(),
-                    content: user_message.to_string(),
-                },
-            ],
-            temperature,
+        if self.api_key.trim().is_empty() {
+            return Err(InsightError::ApiError("GEMINI_API_KEY is empty".to_string()));
+        }
+
+        let request = GeminiGenerateRequest {
+            contents: vec![GeminiContent {
+                parts: vec![GeminiPart {
+                    text: format!("SYSTEM:\n{system}\n\nUSER:\n{user}", system = system_prompt, user = user_message),
+                }],
+            }],
+            generation_config: GeminiGenerationConfig {
+                response_mime_type: "application/json".to_string(),
+                temperature,
+            },
         };
 
-        let response = self
-            .client
-            .post("https://api.openai.com/v1/chat/completions")
-            .bearer_auth(&self.api_key)
-            .json(&request)
-            .send()
-            .await?;
+        let url = format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+            self.model, self.api_key
+        );
+
+        let response = self.client.post(url).json(&request).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -240,15 +256,18 @@ impl InsightsGenerator {
             )));
         }
 
-        let chat_resp: ChatResponse = response
+        let gemini_resp: GeminiGenerateResponse = response
             .json()
             .await
             .map_err(|e| InsightError::ParseError(e.to_string()))?;
 
-        chat_resp
-            .choices
-            .first()
-            .and_then(|c| c.message.content.clone())
-            .ok_or_else(|| InsightError::ParseError("empty response from LLM".to_string()))
+        gemini_resp
+            .candidates
+            .and_then(|c| c.into_iter().next())
+            .and_then(|c| c.content)
+            .and_then(|c| c.parts)
+            .and_then(|p| p.into_iter().next())
+            .and_then(|p| p.text)
+            .ok_or_else(|| InsightError::ParseError("empty response from Gemini".to_string()))
     }
 }

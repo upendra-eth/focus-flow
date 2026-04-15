@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".into());
-    let openai_api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
+    let gemini_api_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let host = std::env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".into());
     let port = std::env::var("SERVER_PORT").unwrap_or_else(|_| "8080".into());
@@ -52,13 +52,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let profiling_engine = Arc::new(ProfilingEngine::new(Arc::clone(&db)));
     let insight_service = Arc::new(InsightService::new(
         Arc::clone(&db),
-        Arc::new(InsightsGenerator::new(&openai_api_key)),
+        Arc::new(InsightsGenerator::new(&gemini_api_key)),
     ));
     let signal_service = Arc::new(SignalService::new(Arc::clone(&db)));
 
-    let whisper = Arc::new(WhisperClient::new(&openai_api_key));
-    let classifier = Arc::new(IntentClassifier::new(&openai_api_key));
-    let embeddings = Arc::new(EmbeddingClient::new(&openai_api_key));
+    let whisper = Arc::new(WhisperClient::new(&gemini_api_key));
+    let classifier = Arc::new(IntentClassifier::new(&gemini_api_key));
+    let embeddings = Arc::new(EmbeddingClient::new(&gemini_api_key));
 
     let state = AppState {
         db,

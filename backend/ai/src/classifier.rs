@@ -42,7 +42,7 @@ RESPOND ONLY WITH VALID JSON (no markdown, no backticks):
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClassifierError {
-    #[error("OpenAI API error: {0}")]
+    #[error("Gemini API error: {0}")]
     ApiError(String),
     #[error("network error: {0}")]
     NetworkError(#[from] reqwest::Error),
@@ -65,31 +65,47 @@ struct RawClassification {
 }
 
 #[derive(Debug, Serialize)]
-struct ChatRequest {
-    model: String,
-    messages: Vec<ChatMessage>,
+struct GeminiGenerateRequest {
+    contents: Vec<GeminiContent>,
+    #[serde(rename = "generationConfig")]
+    generation_config: GeminiGenerationConfig,
+}
+
+#[derive(Debug, Serialize)]
+struct GeminiGenerationConfig {
+    #[serde(rename = "responseMimeType")]
+    response_mime_type: String,
     temperature: f32,
 }
 
 #[derive(Debug, Serialize)]
-struct ChatMessage {
-    role: String,
-    content: String,
+struct GeminiContent {
+    parts: Vec<GeminiPart>,
+}
+
+#[derive(Debug, Serialize)]
+struct GeminiPart {
+    text: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct ChatResponse {
-    choices: Vec<ChatChoice>,
+struct GeminiGenerateResponse {
+    candidates: Option<Vec<GeminiCandidate>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ChatChoice {
-    message: ChatMessageResponse,
+struct GeminiCandidate {
+    content: Option<GeminiCandidateContent>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ChatMessageResponse {
-    content: Option<String>,
+struct GeminiCandidateContent {
+    parts: Option<Vec<GeminiCandidatePart>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiCandidatePart {
+    text: Option<String>,
 }
 
 pub struct IntentClassifier {
@@ -100,7 +116,7 @@ pub struct IntentClassifier {
 
 impl IntentClassifier {
     pub fn new(api_key: &str) -> Self {
-        Self::new_with_model(api_key, "gpt-4o-mini")
+        Self::new_with_model(api_key, "gemini-2.0-flash")
     }
 
     pub fn new_with_model(api_key: &str, model: &str) -> Self {
@@ -117,30 +133,34 @@ impl IntentClassifier {
         transcript: &str,
         context: ClassificationContext,
     ) -> Result<ClassificationResult, ClassifierError> {
+        if self.api_key.trim().is_empty() {
+            return Err(ClassifierError::ApiError("GEMINI_API_KEY is empty".to_string()));
+        }
+
         let user_message = self.build_user_message(transcript, &context);
 
-        let request = ChatRequest {
-            model: self.model.clone(),
-            messages: vec![
-                ChatMessage {
-                    role: "system".to_string(),
-                    content: CLASSIFICATION_SYSTEM_PROMPT.to_string(),
-                },
-                ChatMessage {
-                    role: "user".to_string(),
-                    content: user_message,
-                },
-            ],
-            temperature: 0.1,
+        let request = GeminiGenerateRequest {
+            contents: vec![GeminiContent {
+                parts: vec![GeminiPart {
+                    text: format!(
+                        "SYSTEM:\\n{system}\\n\\nUSER:\\n{user}",
+                        system = CLASSIFICATION_SYSTEM_PROMPT,
+                        user = user_message
+                    ),
+                }],
+            }],
+            generation_config: GeminiGenerationConfig {
+                response_mime_type: "application/json".to_string(),
+                temperature: 0.1,
+            },
         };
 
-        let response = self
-            .client
-            .post("https://api.openai.com/v1/chat/completions")
-            .bearer_auth(&self.api_key)
-            .json(&request)
-            .send()
-            .await?;
+        let url = format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+            self.model, self.api_key
+        );
+
+        let response = self.client.post(url).json(&request).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -153,18 +173,21 @@ impl IntentClassifier {
             )));
         }
 
-        let chat_resp: ChatResponse = response
+        let gemini_resp: GeminiGenerateResponse = response
             .json()
             .await
             .map_err(|e| ClassifierError::ParseError(e.to_string()))?;
 
-        let content = chat_resp
-            .choices
-            .first()
-            .and_then(|c| c.message.content.as_deref())
-            .ok_or_else(|| ClassifierError::ParseError("empty response from LLM".to_string()))?;
+        let content = gemini_resp
+            .candidates
+            .and_then(|c| c.into_iter().next())
+            .and_then(|c| c.content)
+            .and_then(|c| c.parts)
+            .and_then(|p| p.into_iter().next())
+            .and_then(|p| p.text)
+            .ok_or_else(|| ClassifierError::ParseError("empty response from Gemini".to_string()))?;
 
-        self.parse_response(content, transcript)
+        self.parse_response(&content, transcript)
     }
 
     fn build_user_message(&self, transcript: &str, context: &ClassificationContext) -> String {
