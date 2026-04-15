@@ -1,0 +1,26 @@
+# Rust
+target/
+*.rs.bk
+.env
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+local.properties
+
+# Editors
+.idea/
+.vscode/
+
+# OS
+*.DS_Store
+
+# App data
+uploads/
+
+# Node
+node_modules/
+dist/
+.npm/

@@ -1,0 +1,54 @@
+[workspace]
+members = ["api", "core", "ai", "db"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Async / HTTP
+axum = { version = "0.7.9", features = ["macros"] }
+axum-extra = { version = "0.9.6", features = ["typed-header"] }
+tokio = { version = "1.51.1", features = ["full"] }
+tower = "0.5.3"
+tower-http = { version = "0.6.8", features = ["cors", "trace"] }
+
+# Serialization / time / ids
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+uuid = { version = "1.23.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+
+# Observability / errors
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+thiserror = "2.0.18"
+
+# Auth / env / uploads
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+dotenvy = "0.15.7"
+multer = "3.1.0"
+
+# Random / HTTP client / traits
+rand = "0.10.1"
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "multipart", "rustls"] }
+async-trait = "0.1.89"
+
+# Data stores
+sqlx = { version = "0.8.6", default-features = false, features = [
+  "runtime-tokio",
+  "tls-rustls",
+  "postgres",
+  "uuid",
+  "chrono",
+  "json",
+  "derive",
+] }
+redis = { version = "1.2.0", features = ["tokio-comp", "aio"] }
+
+# Internal crates
+focusflow-core = { path = "core" }
+focusflow-ai = { path = "ai" }
+focusflow-db = { path = "db" }
