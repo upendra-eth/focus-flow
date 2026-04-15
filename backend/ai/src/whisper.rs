@@ -82,7 +82,7 @@ pub struct WhisperClient {
 
 impl WhisperClient {
     pub fn new(api_key: &str) -> Self {
-        Self::new_with_model(api_key, "gemini-2.0-flash")
+        Self::new_with_model(api_key, "gemini-2.5-flash")
     }
 
     pub fn new_with_model(api_key: &str, model: &str) -> Self {

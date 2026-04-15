@@ -147,7 +147,7 @@ impl AgentChat {
         Self {
             api_key: api_key.to_string(),
             client: reqwest::Client::new(),
-            model: "gemini-2.0-flash".to_string(),
+            model: "gemini-2.5-flash".to_string(),
         }
     }
 
