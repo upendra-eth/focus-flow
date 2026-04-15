@@ -7,6 +7,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
+use focusflow_ai::agent::AgentChat;
 use focusflow_ai::classifier::IntentClassifier;
 use focusflow_ai::embeddings::EmbeddingClient;
 use focusflow_ai::insights_generator::InsightsGenerator;
@@ -59,6 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let whisper = Arc::new(WhisperClient::new(&gemini_api_key));
     let classifier = Arc::new(IntentClassifier::new(&gemini_api_key));
     let embeddings = Arc::new(EmbeddingClient::new(&gemini_api_key));
+    let agent = Arc::new(AgentChat::new(&gemini_api_key));
 
     let state = AppState {
         db,
@@ -70,6 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         whisper,
         classifier,
         embeddings,
+        agent,
         jwt_secret,
     };
 
@@ -93,6 +96,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             get(routes::insights::latest_insight),
         )
         .route("/api/v1/signals", post(routes::signals::record_signals))
+        .route("/api/v1/agent/chat", post(routes::agent::agent_chat))
+        .route("/api/v1/agent/entries", get(routes::agent::get_entries))
+        .route("/api/v1/agent/dashboard", get(routes::agent::get_dashboard))
+        .route("/api/v1/agent/conversations", get(routes::agent::list_conversations))
         .route("/api/v1/ws", get(ws::handler::ws_handler))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())

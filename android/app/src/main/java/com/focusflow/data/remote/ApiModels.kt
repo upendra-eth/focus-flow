@@ -125,3 +125,55 @@ data class SignalDto(
     val payload: Map<String, Any> = emptyMap(),
     @SerializedName("recorded_at") val recordedAt: String? = null
 )
+
+// --- Agent ---
+
+data class AgentChatRequest(
+    @SerializedName("conversation_id") val conversation_id: String? = null,
+    val text: String,
+    val images: List<ImageAttachmentDto>? = null,
+)
+
+data class ImageAttachmentDto(
+    @SerializedName("mime_type") val mime_type: String,
+    val data: String,
+)
+
+data class AgentChatResponse(
+    @SerializedName("conversation_id") val conversation_id: String,
+    val reply: String,
+    @SerializedName("entries_created") val entries_created: List<EntryBriefDto>,
+    @SerializedName("web_search_used") val web_search_used: Boolean,
+)
+
+data class EntryBriefDto(
+    val id: String,
+    val category: String,
+    val title: String,
+)
+
+data class LifeEntryDto(
+    val id: String,
+    val category: String,
+    val title: String,
+    val content: String,
+    @SerializedName("structured_data") val structuredData: Map<String, Any>? = null,
+    val tags: List<String> = emptyList(),
+    @SerializedName("entry_date") val entryDate: String,
+    @SerializedName("created_at") val createdAt: String,
+)
+
+data class DashboardDto(
+    @SerializedName("summary_text") val summary_text: String,
+    @SerializedName("mood_score") val mood_score: Int? = null,
+    @SerializedName("energy_score") val energy_score: Int? = null,
+    @SerializedName("categories_breakdown") val categories_breakdown: Map<String, Int> = emptyMap(),
+    val highlights: List<Map<String, String>> = emptyList(),
+    @SerializedName("financial_summary") val financial_summary: Map<String, Any>? = null,
+)
+
+data class ConversationDto(
+    val id: String,
+    val title: String? = null,
+    @SerializedName("updated_at") val updatedAt: String,
+)

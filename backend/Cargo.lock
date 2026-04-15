@@ -729,6 +729,7 @@ dependencies = [
 name = "focusflow-core"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "chrono",
  "focusflow-ai",
  "focusflow-db",

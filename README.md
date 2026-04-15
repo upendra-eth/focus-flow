@@ -1,28 +1,25 @@
-# FocusFlow — ADHD Productivity App
+# FocusFlow — ADHD Productivity + Life Dashboard App
 
-FocusFlow is an AI-powered productivity app designed specifically for ADHD users. It emphasizes voice-first input, dopamine-driven engagement on the home screen, and progressive profiling that adapts to you over time rather than dumping long questionnaires up front.
+FocusFlow is an AI-powered productivity app designed for ADHD users. It combines **voice-first input**, **dopamine-driven engagement**, and a personal **AI agent** that auto-categorizes your life into a daily dashboard — finances, health, ideas, daily recaps, and more.
 
 ## Features
 
+- **AI Agent Chat** — Dump your thoughts naturally. The agent auto-categorizes everything into life entries (daily notes, financial, health, ideas, learning, goals, gratitude, etc.) and builds a daily dashboard.
+- **Image + Web Search** — Attach images for the agent to analyze. Ask questions and it searches the web for answers.
+- **Daily Dashboard** — AI-generated summary with mood/energy scores, category breakdown, highlights, and financial tracking.
 - **Voice-first input** — Ramble freely; the AI classifies intent (task, journal, profile answer, and more).
 - **Dopamine home screen widget** — Surfaces wins and streaks, not a guilt list of open to-dos.
-- **Drip-feed profiling** — One or two questions at a time, shown in context (for example after a win).
+- **Drip-feed profiling** — One or two questions at a time, shown in context.
 - **Weekly AI insights** — Behavioral patterns plus concrete, actionable recommendations.
-- **Offline-first with real-time sync** — Local persistence on device with background sync and push-style updates when online.
-
-## Architecture
-
-The system is documented end-to-end in the parent repository: **[`../ADHD_APP_ARCHITECTURE.md`](../ADHD_APP_ARCHITECTURE.md)** (system diagram, data flow voice → AI → storage → UI, database design, AI pipeline, profiling engine, widget behavior, permission UX, roadmap, and API appendix).
-
-At a glance: an **Android** client (Compose, Room, WorkManager, Glance widget) talks to a **Rust Axum** API gateway. **PostgreSQL** holds users, tasks, profiling, and signals; **Redis** caches widget and session-style state; **Qdrant** stores embeddings for contextual retrieval; **NATS JetStream** carries domain events for async AI and fan-out. The AI path uses **Whisper** for transcription and **LLMs** for classification and weekly insights.
+- **Offline-first with real-time sync** — Local persistence on device with background sync.
 
 ## Tech Stack
 
 | Layer | Choices |
 |--------|---------|
-| **Backend** | Rust (Axum), PostgreSQL, Redis, Qdrant, NATS JetStream |
-| **AI** | OpenAI Whisper (STT), GPT-4o-mini (classification), GPT-4o (insights; Anthropic optional via env for future paths) |
-| **Mobile** | Android (Jetpack Compose, Glance widget, Room) |
+| **Backend** | Rust (Axum), PostgreSQL, Redis |
+| **AI** | Google Gemini 2.0 Flash (multimodal: text + images + web search grounding) |
+| **Mobile** | Android (Jetpack Compose, Glance widget, Room, Coil) |
 
 ## Quick Start
 
@@ -31,23 +28,19 @@ At a glance: an **Android** client (Compose, Room, WorkManager, Glance widget) t
 - Docker and Docker Compose
 - Rust **1.77+** (stable)
 - Android Studio **Hedgehog** or newer with **SDK 34**
-- OpenAI API key (and optional keys per `.env.example`)
+- Google Gemini API key ([get one free](https://aistudio.google.com/apikey))
 
 ### Backend setup
 
 ```bash
 cd focusflow
 cp .env.example .env
-# Edit .env with your API keys and secrets
+# Edit .env — add your GEMINI_API_KEY and JWT_SECRET
 
-# Start infrastructure (Postgres, Redis, Qdrant, NATS)
+# Start infrastructure (Postgres + Redis)
 docker compose up -d
 
-# Run SQL migrations (from repo root, with DATABASE_URL set)
-psql "$DATABASE_URL" -f migrations/001_initial_schema.sql
-psql "$DATABASE_URL" -f migrations/002_seed_profiling_questions.sql
-
-# Or use the helper script (loads .env if present)
+# Run SQL migrations
 chmod +x scripts/run_migrations.sh
 ./scripts/run_migrations.sh
 
@@ -56,149 +49,107 @@ cd backend
 cargo run -p focusflow-api
 ```
 
-The HTTP server listens on `SERVER_HOST` / `SERVER_PORT` (defaults `0.0.0.0:8080`).
-
 ### Android setup
 
-1. Open the `android/` directory in Android Studio.
-2. Adjust **`API_BASE_URL`** in `android/app/build.gradle.kts` if your backend is not on the emulator default (`http://10.0.2.2:8080` for the Android emulator).
-3. Build and run on an emulator or physical device.
+1. Open `android/` in Android Studio.
+2. Adjust `API_BASE_URL` in `android/app/build.gradle.kts` to your backend URL.
+3. Build and run on emulator or device.
 
-## Project structure
-
-Directory layout (aligned with [Appendix C in `../ADHD_APP_ARCHITECTURE.md`](../ADHD_APP_ARCHITECTURE.md); SQL migrations live at the **repository root** in `migrations/`).
+## Project Structure
 
 ```
 focusflow/
 ├── backend/                      # Rust workspace
-│   ├── Cargo.toml
 │   ├── api/                      # Axum HTTP + WebSocket server
-│   │   └── src/
-│   │       ├── main.rs
-│   │       ├── routes/
-│   │       ├── middleware/
-│   │       └── ws/
-│   ├── core/                     # Domain logic
-│   │   └── src/
-│   │       ├── tasks/
-│   │       ├── profiling/        # State machine + scheduling
-│   │       ├── insights/
-│   │       └── signals/
+│   │   └── src/routes/
+│   │       ├── agent.rs          # AI agent chat, entries, dashboard
+│   │       ├── tasks.rs          # Task CRUD
+│   │       ├── voice.rs          # Voice upload + transcription
+│   │       ├── profile.rs        # Profiling engine
+│   │       └── ...
 │   ├── ai/                       # AI service integrations
 │   │   └── src/
-│   │       ├── whisper.rs
-│   │       ├── classifier.rs
-│   │       ├── embeddings.rs
+│   │       ├── agent.rs          # Gemini multimodal agent
+│   │       ├── dashboard_generator.rs
+│   │       ├── whisper.rs        # Gemini STT
+│   │       ├── classifier.rs     # Intent classification
 │   │       └── insights_generator.rs
+│   ├── core/                     # Domain logic
+│   │   └── src/
+│   │       ├── agent/            # Agent service orchestration
+│   │       ├── tasks/
+│   │       ├── profiling/
+│   │       └── insights/
 │   └── db/                       # Database layer
-│       └── src/
-│           ├── postgres.rs
-│           ├── qdrant.rs
-│           └── redis.rs
 │
-├── android/                      # Android app
-│   ├── app/
-│   │   └── src/main/
-│   │       ├── java/.../focusflow/
-│   │       │   ├── ui/
-│   │       │   │   ├── screens/
-│   │       │   │   ├── components/
-│   │       │   │   └── widget/   # Glance widget
-│   │       │   ├── data/
-│   │       │   │   ├── local/    # Room DB
-│   │       │   │   ├── remote/   # API client
-│   │       │   │   └── sync/     # Sync engine
-│   │       │   ├── domain/
-│   │       │   │   ├── models/
-│   │       │   │   └── usecases/
-│   │       │   └── voice/        # Audio recording
-│   │       └── res/
-│   └── build.gradle.kts
+├── android/                      # Android app (Jetpack Compose)
+│   └── app/src/main/java/.../
+│       ├── ui/screens/
+│       │   ├── AgentChatScreen.kt      # Chat with AI agent
+│       │   ├── AgentChatViewModel.kt   # Chat state management
+│       │   ├── DashboardScreen.kt      # Daily life dashboard
+│       │   ├── HomeScreen.kt           # Widget-like home
+│       │   └── TasksScreen.kt          # Task management
+│       └── data/remote/                # API client + DTOs
 │
 ├── migrations/                   # PostgreSQL migrations (run in order)
-├── docs/                         # API and other docs
-├── scripts/                      # Dev and ops helpers
+│   ├── 001_initial_schema.sql
+│   ├── 002_seed_profiling_questions.sql
+│   └── 003_agent_conversations.sql
+├── scripts/                      # Dev helpers
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
 
-## API endpoints
+## API Endpoints
 
-All MVP HTTP routes and the WebSocket are listed in **Appendix B** of [`../ADHD_APP_ARCHITECTURE.md`](../ADHD_APP_ARCHITECTURE.md). Detailed request and response shapes are in **[`docs/API.md`](docs/API.md)**.
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/auth/device` | Device-based authentication |
+| `POST` | `/api/v1/agent/chat` | Chat with AI agent (text + images) |
+| `GET` | `/api/v1/agent/entries` | Get life entries (filterable by date/category) |
+| `GET` | `/api/v1/agent/dashboard` | Get daily dashboard |
+| `GET` | `/api/v1/agent/conversations` | List conversations |
+| `POST` | `/api/v1/voice/upload` | Voice transcription + intent classification |
+| `GET/POST` | `/api/v1/tasks` | Task CRUD |
+| `PATCH` | `/api/v1/tasks/:id` | Update task |
+| `GET` | `/api/v1/widget/state` | Widget data |
+| `GET` | `/api/v1/profile/next-question` | Next profiling question |
+| `POST` | `/api/v1/profile/answer` | Submit profiling answer |
+| `GET` | `/api/v1/insights/latest` | Weekly AI insight |
+| `WS` | `/api/v1/ws` | Real-time updates |
 
-| Method | Path |
-|--------|------|
-| `POST` | `/api/v1/auth/device` |
-| `POST` | `/api/v1/voice/upload` |
-| `GET` | `/api/v1/tasks` |
-| `POST` | `/api/v1/tasks` |
-| `PATCH` | `/api/v1/tasks/{id}` |
-| `GET` | `/api/v1/widget/state` |
-| `GET` | `/api/v1/profile/next-question` |
-| `POST` | `/api/v1/profile/answer` |
-| `POST` | `/api/v1/profile/skip` |
-| `GET` | `/api/v1/insights/latest` |
-| `POST` | `/api/v1/signals` |
-| `WS` | `/api/v1/ws` |
+## Environment Variables
 
-## Development
-
-### Running tests
-
-```bash
-cd backend && cargo test
-```
-
-### Database migrations
-
-Migration files live in **`migrations/`**. Apply them in lexical order (`001_…`, then `002_…`, and so on). Use `psql` or `./scripts/run_migrations.sh` from the `focusflow` directory.
-
-### Environment variables
-
-See **`.env.example`** in this directory. Summary:
+See `.env.example`:
 
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection URL |
-| `QDRANT_URL` | Qdrant HTTP endpoint |
-| `NATS_URL` | NATS server URL (JetStream) |
-| `OPENAI_API_KEY` | OpenAI API key (Whisper, chat, embeddings) |
-| `ANTHROPIC_API_KEY` | Optional; reserved for alternate insight paths |
+| `GEMINI_API_KEY` | Google Gemini API key (free tier available) |
 | `JWT_SECRET` | Secret for signing device JWTs |
 | `RUST_LOG` | Tracing filter (e.g. `focusflow_api=debug`) |
 | `SERVER_HOST` / `SERVER_PORT` | API bind address |
-| `WHISPER_MODEL` | Whisper model id (default `whisper-1`) |
-| `LLM_MODEL` | Default LLM id for classification-style calls |
-| `EMBEDDING_MODEL` | Embeddings model id |
 
-### Dev scripts
+## How the Agent Works
 
-| Script | Use |
-|--------|-----|
-| `scripts/run_migrations.sh` | Apply all `migrations/*.sql` |
-| `scripts/generate_token.sh` | Call device auth and pretty-print JSON |
-| `scripts/test_voice.sh` | Multipart upload to `/api/v1/voice/upload` |
-
-Make them executable once: `chmod +x scripts/*.sh`.
-
-## MVP roadmap (4 weeks, brief)
-
-- **Week 1 — Foundation:** Axum API, Postgres schema, user + task CRUD, Android shell + Room, Whisper + classifier; deliverable: voice → task in the list (plus text fallback).
-- **Week 2 — Widget + loop:** Completion and streaks, Redis-backed widget payload, Glance widget, behavioral signals, journal/thought path; deliverable: home-screen wins and richer voice intents.
-- **Week 3 — Profiling + insights:** Question bank, drip scheduling, answer/skip APIs, weekly insight job + UI; deliverable: contextual questions and first weekly insight.
-- **Week 4 — Polish + beta:** Qdrant context, offline/sync hardening, rate limits and security pass, accessibility and UI polish, internal Play track; deliverable: closed beta (roughly 10–20 users).
-
-Full day-by-day tables live in **Section 7** of [`../ADHD_APP_ARCHITECTURE.md`](../ADHD_APP_ARCHITECTURE.md).
-
-## Contributing
-
-1. Open an issue or discuss larger changes before heavy implementation.
-2. Keep commits focused; match existing Rust and Kotlin style.
-3. Run `cargo fmt`, `cargo clippy`, and `cargo test` in `backend/` before submitting.
-4. Document new public HTTP behavior in `docs/API.md`.
+1. User sends text (+ optional images) via chat
+2. Gemini multimodal AI analyzes the input with conversation context
+3. Agent auto-categorizes into life entry types:
+   - `daily_note` — general thoughts
+   - `mind_dump` — unstructured brain dump
+   - `day_recap` — what you did today (mood, energy, highlights)
+   - `financial` — expenses/income (amount, category extracted)
+   - `health` — exercise, sleep, food, medication
+   - `idea` — creative ideas, project concepts
+   - `learning` — things learned or read
+   - `goal` — aspirations, plans
+   - `gratitude` — things you're thankful for
+4. Structured data is extracted per category (e.g., financial amounts, exercise duration)
+5. Daily dashboard is AI-generated from all entries: summary, mood/energy scores, category breakdown, highlights, financial totals
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) (placeholder: add a `LICENSE` file with the standard MIT text when you publish the repo).
+MIT

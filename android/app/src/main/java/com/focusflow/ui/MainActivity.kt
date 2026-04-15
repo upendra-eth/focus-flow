@@ -10,11 +10,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -32,8 +34,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.focusflow.ui.screens.AgentChatScreen
+import com.focusflow.ui.screens.DashboardScreen
 import com.focusflow.ui.screens.HomeScreen
-import com.focusflow.ui.screens.InsightsScreen
 import com.focusflow.ui.screens.TasksScreen
 import com.focusflow.ui.theme.FocusFlowTheme
 
@@ -46,8 +49,9 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem("home", "Home", Icons.Filled.Home, Icons.Outlined.Home),
+    BottomNavItem("agent", "Agent", Icons.Filled.Email, Icons.Outlined.Email),
+    BottomNavItem("dashboard", "Dashboard", Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
     BottomNavItem("tasks", "Tasks", Icons.Filled.CheckCircle, Icons.Outlined.CheckCircle),
-    BottomNavItem("insights", "Insights", Icons.Filled.Star, Icons.Outlined.Star),
 )
 
 class MainActivity : ComponentActivity() {
@@ -105,8 +109,9 @@ fun FocusFlowNavHost() {
             exitTransition = { fadeOut(animationSpec = tween(200)) },
         ) {
             composable("home") { HomeScreen() }
+            composable("agent") { AgentChatScreen() }
+            composable("dashboard") { DashboardScreen() }
             composable("tasks") { TasksScreen() }
-            composable("insights") { InsightsScreen() }
         }
     }
 }

@@ -14,4 +14,4 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 async-trait = { workspace = true }
-base64 = "0.22.1"
+base64 = { workspace = true }

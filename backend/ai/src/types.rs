@@ -73,3 +73,13 @@ pub struct MotivationalMessage {
     pub message: String,
     pub tone: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardResult {
+    pub summary_text: String,
+    pub mood_score: Option<i32>,
+    pub energy_score: Option<i32>,
+    pub categories_breakdown: serde_json::Value,
+    pub highlights: serde_json::Value,
+    pub financial_summary: Option<serde_json::Value>,
+}

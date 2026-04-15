@@ -116,3 +116,64 @@ pub struct CreateSignal {
     pub signal_type: String,
     pub payload: serde_json::Value,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Conversation {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub title: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct ConversationMessage {
+    pub id: Uuid,
+    pub conversation_id: Uuid,
+    pub role: String,
+    pub content: String,
+    pub image_urls: Option<Vec<String>>,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct LifeEntry {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub category: String,
+    pub title: String,
+    pub content: String,
+    pub structured_data: Option<serde_json::Value>,
+    pub source_message_id: Option<Uuid>,
+    pub image_urls: Option<Vec<String>>,
+    pub tags: Vec<String>,
+    pub entry_date: chrono::NaiveDate,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct DailyDashboard {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub dashboard_date: chrono::NaiveDate,
+    pub summary_text: String,
+    pub mood_score: Option<i32>,
+    pub energy_score: Option<i32>,
+    pub categories_breakdown: serde_json::Value,
+    pub highlights: serde_json::Value,
+    pub financial_summary: Option<serde_json::Value>,
+    pub generated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct ImageUpload {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub filename: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
+    pub storage_path: String,
+    pub ai_description: Option<String>,
+    pub created_at: DateTime<Utc>,
+}

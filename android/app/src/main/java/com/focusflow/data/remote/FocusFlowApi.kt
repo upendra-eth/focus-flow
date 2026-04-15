@@ -8,6 +8,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface FocusFlowApi {
 
@@ -44,4 +45,22 @@ interface FocusFlowApi {
 
     @POST("api/v1/signals")
     suspend fun sendSignals(@Body signals: SendSignalsRequest)
+
+    // --- Agent ---
+
+    @POST("api/v1/agent/chat")
+    suspend fun agentChat(@Body request: AgentChatRequest): AgentChatResponse
+
+    @GET("api/v1/agent/entries")
+    suspend fun getEntries(
+        @Query("date") date: String? = null,
+        @Query("category") category: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): List<LifeEntryDto>
+
+    @GET("api/v1/agent/dashboard")
+    suspend fun getDashboard(@Query("date") date: String? = null): DashboardDto?
+
+    @GET("api/v1/agent/conversations")
+    suspend fun getConversations(): List<ConversationDto>
 }

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use focusflow_ai::agent::AgentChat;
 use focusflow_ai::classifier::IntentClassifier;
 use focusflow_ai::embeddings::EmbeddingClient;
 use focusflow_ai::whisper::WhisperClient;
@@ -27,6 +28,7 @@ pub struct AppState {
     pub whisper: Arc<WhisperClient>,
     pub classifier: Arc<IntentClassifier>,
     pub embeddings: Arc<EmbeddingClient>,
+    pub agent: Arc<AgentChat>,
     pub jwt_secret: String,
 }
 
